@@ -27,13 +27,20 @@ mongoose.connect(MONGODB_URI)
 // CORS Configuration
 const allowedOrigins = process.env.ALLOWED_ORIGINS ? 
   process.env.ALLOWED_ORIGINS.split(',') : 
-  ['http://localhost:5173', 'http://127.0.0.1:5173'];
+  [
+    'http://localhost:5173', 
+    'http://127.0.0.1:5173',
+    'https://bloodmatch-4.onrender.com', // Added production URL
+    'https://bloodmatch-unified.onrender.com' // Potential secondary URL
+  ];
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
+    // If no origin (like mobile apps/curl) or origin in allowed list
+    if (!origin || allowedOrigins.includes(origin) || allowedOrigins.includes(origin.replace(/\/$/, ''))) {
       callback(null, true);
     } else {
+      console.warn(`⚠️ CORS blocked request from: ${origin}`);
       callback(new Error('Not allowed by CORS'));
     }
   },
@@ -48,21 +55,43 @@ app.use('/api/requests', require('./routes/requestRoutes'));
 app.use('/api/admin', require('./routes/adminRoutes'));
 app.use('/api/notifications', require('./routes/notificationRoutes'));
 
-// Serve Static Files — auto-detect dist folder (works on Render without NODE_ENV)
+// Serve Static Files
 const distPath = path.join(__dirname, '../../frontend/dist');
 const fs = require('fs');
 
 if (fs.existsSync(distPath)) {
+  console.log('✅ Static assets directory found:', distPath);
   app.use(express.static(distPath));
 
-  // SPA Fallback for all non-API routes
-  app.use((req, res, next) => {
+  // SPA Fallback: Redirect all non-API and non-resource requests to index.html
+  app.get('*', (req, res, next) => {
+    // Skip API routes
     if (req.path.startsWith('/api')) return next();
-    res.sendFile(path.join(distPath, 'index.html'));
+
+    // Skip requests that look like static assets but weren't caught by express.static
+    // This prevents serving index.html (HTML) when a .css or .js file is expected.
+    const ext = path.extname(req.path).toLowerCase();
+    const staticExtensions = ['.js', '.css', '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.woff', '.woff2', '.ttf'];
+    
+    if (staticExtensions.includes(ext) || req.path.includes('/assets/')) {
+      return res.status(404).json({
+        success: false,
+        message: `Asset not found: ${req.path}`
+      });
+    }
+
+    // Serve index.html
+    const indexPath = path.join(distPath, 'index.html');
+    if (fs.existsSync(indexPath)) {
+      res.sendFile(indexPath);
+    } else {
+      next();
+    }
   });
 } else {
+  console.log('⚠️ Static assets directory NOT found at:', distPath);
   app.get('/', (req, res) => {
-    res.send('API is running...');
+    res.send('API is running... (Frontend build not found)');
   });
 }
 
