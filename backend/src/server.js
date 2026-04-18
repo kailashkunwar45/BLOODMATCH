@@ -4,27 +4,44 @@ const cors = require('cors');
 const helmet = require('helmet');
 const dotenv = require('dotenv');
 const path = require('path');
+const fs = require('fs');
 
 // Load environment variables
 dotenv.config();
 
 const app = express();
 
+// --- HIGH PRIORITY DIAGNOSTICS & STATIC SERVING ---
+
+// 1. Resolve dist path absolutely
+const distPath = path.resolve(__dirname, '../../frontend/dist');
+console.log('🔍 Checking for static assets at:', distPath);
+
+// 2. Request Logger (First Middleware)
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+  next();
+});
+
+// 3. Serve Static Files IMMEDIATELY to bypass any security/CORS blocks
+if (fs.existsSync(distPath)) {
+  console.log('✅ Static assets directory found. Serving...');
+  app.use(express.static(distPath));
+} else {
+  console.warn('⚠️ Static assets directory NOT found at:', distPath);
+}
+
+// --- STANDARD MIDDLEWARE ---
+
 // Security Middleware
 app.use(helmet({
-  contentSecurityPolicy: false, // Turn off CSP if testing locally with maps/external assets, or configure specifically
+  contentSecurityPolicy: false, // Disabling CSP for troubleshooting, can be hardened later
 }));
 
-// Middleware
+// Parsing Middleware
 app.use(express.json());
 
-// MongoDB Connection
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/blood-matcher';
-mongoose.connect(MONGODB_URI)
-  .then(() => console.log('✅ MongoDB Connected successfully'))
-  .catch((err) => console.error('❌ MongoDB Connection Error:', err));
-
-// CORS Configuration
+// CORS Configuration - Permissive for debugging
 const allowedOrigins = [
   'http://localhost:5173', 
   'http://127.0.0.1:5173',
@@ -39,14 +56,19 @@ app.use(cors({
       callback(null, true);
     } else {
       console.warn(`⚠️ CORS blocked request from: ${origin}`);
-      // Return a descriptive error instead of a generic one
       callback(new Error(`CORS blocked: ${origin}`));
     }
   },
   credentials: true
 }));
 
-// API Routes
+// MongoDB Connection
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/blood-matcher';
+mongoose.connect(MONGODB_URI)
+  .then(() => console.log('✅ MongoDB Connected successfully'))
+  .catch((err) => console.error('❌ MongoDB Connection Error:', err));
+
+// --- API ROUTES ---
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/donors', require('./routes/donorRoutes'));
 app.use('/api/hospitals', require('./routes/hospitalRoutes'));
@@ -54,45 +76,35 @@ app.use('/api/requests', require('./routes/requestRoutes'));
 app.use('/api/admin', require('./routes/adminRoutes'));
 app.use('/api/notifications', require('./routes/notificationRoutes'));
 
-// Serve Static Files - Use resolve for absolute paths
-const distPath = path.resolve(__dirname, '../../frontend/dist');
-const fs = require('fs');
+// --- SPA FALLBACK ---
 
-if (fs.existsSync(distPath)) {
-  console.log('✅ Static assets directory found:', distPath);
-  app.use(express.static(distPath));
+// Catch-all route for SPA navigation
+app.get('*', (req, res, next) => {
+  // Skip API routes
+  if (req.path.startsWith('/api')) return next();
 
-  // SPA Fallback: Redirect all non-API and non-resource requests to index.html
-  app.get('*', (req, res, next) => {
-    // Skip API routes
-    if (req.path.startsWith('/api')) return next();
+  // If we get here, express.static didn't find the file.
+  // We should only serve index.html for page routes, not missing assets.
+  const ext = path.extname(req.path).toLowerCase();
+  const staticExtensions = ['.js', '.css', '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.woff', '.woff2', '.ttf'];
+  
+  if (staticExtensions.includes(ext) || req.path.includes('/assets/')) {
+    console.warn(`🚫 Asset NOT found in static folder: ${req.path}`);
+    return res.status(404).json({
+      success: false,
+      message: `Asset not found: ${req.path}`,
+      path: req.path
+    });
+  }
 
-    // Skip requests that look like static assets but weren't caught by express.static
-    // This prevents serving index.html (HTML) when a .css or .js file is expected.
-    const ext = path.extname(req.path).toLowerCase();
-    const staticExtensions = ['.js', '.css', '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.woff', '.woff2', '.ttf'];
-    
-    if (staticExtensions.includes(ext) || req.path.includes('/assets/')) {
-      return res.status(404).json({
-        success: false,
-        message: `Asset not found: ${req.path}`
-      });
-    }
-
-    // Serve index.html
-    const indexPath = path.join(distPath, 'index.html');
-    if (fs.existsSync(indexPath)) {
-      res.sendFile(indexPath);
-    } else {
-      next();
-    }
-  });
-} else {
-  console.log('⚠️ Static assets directory NOT found at:', distPath);
-  app.get('/', (req, res) => {
-    res.send('API is running... (Frontend build not found)');
-  });
-}
+  // Serve index.html for SPA routing
+  const indexPath = path.join(distPath, 'index.html');
+  if (fs.existsSync(indexPath)) {
+    res.sendFile(indexPath);
+  } else {
+    next();
+  }
+});
 
 // Basic error handler
 app.use((err, req, res, next) => {
