@@ -25,23 +25,22 @@ mongoose.connect(MONGODB_URI)
   .catch((err) => console.error('❌ MongoDB Connection Error:', err));
 
 // CORS Configuration
-const allowedOrigins = process.env.ALLOWED_ORIGINS ? 
-  process.env.ALLOWED_ORIGINS.split(',') : 
-  [
-    'http://localhost:5173', 
-    'http://127.0.0.1:5173',
-    'https://bloodmatch-4.onrender.com', // Added production URL
-    'https://bloodmatch-unified.onrender.com' // Potential secondary URL
-  ];
+const allowedOrigins = [
+  'http://localhost:5173', 
+  'http://127.0.0.1:5173',
+  'https://bloodmatch-4.onrender.com',
+  'https://bloodmatch-unified.onrender.com'
+];
 
 app.use(cors({
   origin: (origin, callback) => {
-    // If no origin (like mobile apps/curl) or origin in allowed list
-    if (!origin || allowedOrigins.includes(origin) || allowedOrigins.includes(origin.replace(/\/$/, ''))) {
+    // If no origin (like mobile/curl) or origin in allowed list
+    if (!origin || allowedOrigins.includes(origin) || origin.includes('onrender.com')) {
       callback(null, true);
     } else {
       console.warn(`⚠️ CORS blocked request from: ${origin}`);
-      callback(new Error('Not allowed by CORS'));
+      // Return a descriptive error instead of a generic one
+      callback(new Error(`CORS blocked: ${origin}`));
     }
   },
   credentials: true
@@ -55,8 +54,8 @@ app.use('/api/requests', require('./routes/requestRoutes'));
 app.use('/api/admin', require('./routes/adminRoutes'));
 app.use('/api/notifications', require('./routes/notificationRoutes'));
 
-// Serve Static Files
-const distPath = path.join(__dirname, '../../frontend/dist');
+// Serve Static Files - Use resolve for absolute paths
+const distPath = path.resolve(__dirname, '../../frontend/dist');
 const fs = require('fs');
 
 if (fs.existsSync(distPath)) {
@@ -97,10 +96,12 @@ if (fs.existsSync(distPath)) {
 
 // Basic error handler
 app.use((err, req, res, next) => {
+  console.error('❌ Server Error:', err);
   const statusCode = err.statusCode || 500;
   res.status(statusCode).json({
     success: false,
     message: err.message || 'Internal Server Error',
+    path: req.path,
     stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
   });
 });
