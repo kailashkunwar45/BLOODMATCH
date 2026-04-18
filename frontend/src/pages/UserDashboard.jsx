@@ -331,7 +331,7 @@ const UserDashboard = () => {
                   onClick={async () => {
                     await axios.post(`${API_URL}/notifications/read`, {}, { headers: { Authorization: `Bearer ${user.token}` } });
                     fetchNotifications();
-                    success('All notifications marked as read');
+                    showSuccess('All notifications marked as read');
                   }}
                   className="btn btn-outline btn-small"
                   style={{ borderRadius: '20px' }}
