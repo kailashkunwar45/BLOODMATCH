@@ -48,19 +48,21 @@ app.use('/api/requests', require('./routes/requestRoutes'));
 app.use('/api/admin', require('./routes/adminRoutes'));
 app.use('/api/notifications', require('./routes/notificationRoutes'));
 
-// Serve Static Files in Production
-if (process.env.NODE_ENV === 'production') {
-  const distPath = path.join(__dirname, '../../frontend/dist');
+// Serve Static Files — auto-detect dist folder (works on Render without NODE_ENV)
+const distPath = path.join(__dirname, '../../frontend/dist');
+const fs = require('fs');
+
+if (fs.existsSync(distPath)) {
   app.use(express.static(distPath));
 
-  // SPA Fallback: works with Express 4 and Express 5
+  // SPA Fallback for all non-API routes
   app.use((req, res, next) => {
     if (req.path.startsWith('/api')) return next();
     res.sendFile(path.join(distPath, 'index.html'));
   });
 } else {
   app.get('/', (req, res) => {
-    res.send('API is running (Development Mode)...');
+    res.send('API is running...');
   });
 }
 
