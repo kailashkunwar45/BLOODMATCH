@@ -78,8 +78,8 @@ app.use('/api/notifications', require('./routes/notificationRoutes'));
 
 // --- SPA FALLBACK ---
 
-// Catch-all route for SPA navigation
-app.get('*', (req, res, next) => {
+// Catch-all route for SPA navigation - Express 5 compatible syntax
+app.get('(.*)', (req, res, next) => {
   // Skip API routes
   if (req.path.startsWith('/api')) return next();
 
