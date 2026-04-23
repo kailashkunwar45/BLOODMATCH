@@ -15,38 +15,36 @@ const HospitalDashboard = () => {
     coordinates: [85.324, 27.717]
   });
   const [requests, setRequests] = useState([]);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchHospital();
-    fetchLinkedRequests();
-  }, []);
+    let cancelled = false;
 
-  const fetchLinkedRequests = async () => {
-    try {
-      const { data } = await axios.get(`${API_URL}/requests/hospital-requests`, {
-        headers: { Authorization: `Bearer ${user.token}` }
-      });
-      setRequests(data.requests);
-    } catch (err) { console.error(err); } 
-  };
+    (async () => {
+      try {
+        const [hospitalRes, requestsRes] = await Promise.all([
+          axios.get(`${API_URL}/hospitals/profile`, { headers: { Authorization: `Bearer ${user.token}` } }),
+          axios.get(`${API_URL}/requests/hospital-requests`, { headers: { Authorization: `Bearer ${user.token}` } })
+        ]);
 
-  const fetchHospital = async () => {
-    try {
-      const { data } = await axios.get(`${API_URL}/hospitals/profile`, {
-        headers: { Authorization: `Bearer ${user.token}` }
-      });
-      if (data.hospital) {
-        setHospital({
-          name: data.hospital.name,
-          address: data.hospital.address,
-          city: data.hospital.city,
-          contact: data.hospital.contact,
-          coordinates: data.hospital.location.coordinates
-        });
+        if (!cancelled) {
+          if (hospitalRes.data.hospital) {
+            setHospital({
+              name: hospitalRes.data.hospital.name,
+              address: hospitalRes.data.hospital.address,
+              city: hospitalRes.data.hospital.city,
+              contact: hospitalRes.data.hospital.contact,
+              coordinates: hospitalRes.data.hospital.location.coordinates
+            });
+          }
+          setRequests(requestsRes.data.requests || []);
+        }
+      } catch (err) {
+        console.error(err);
       }
-    } catch (err) { console.error(err); } finally { setLoading(false); }
-  };
+    })();
+
+    return () => { cancelled = true; };
+  }, [API_URL, user.token]);
 
   const handleUpdate = async (e) => {
     e.preventDefault();

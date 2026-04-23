@@ -79,32 +79,32 @@ app.use('/api/notifications', require('./routes/notificationRoutes'));
 // --- SPA FALLBACK ---
 
 // Catch-all route for SPA navigation - Express 5 compatible syntax
-app.get('(.*)', (req, res, next) => {
-  // Skip API routes
-  if (req.path.startsWith('/api')) return next();
+// app.get('*', (req, res, next) => {
+//   // Skip API routes
+//   if (req.path.startsWith('/api')) return next();
 
-  // If we get here, express.static didn't find the file.
-  // We should only serve index.html for page routes, not missing assets.
-  const ext = path.extname(req.path).toLowerCase();
-  const staticExtensions = ['.js', '.css', '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.woff', '.woff2', '.ttf'];
+//   // If we get here, express.static didn't find the file.
+//   // We should only serve index.html for page routes, not missing assets.
+//   const ext = path.extname(req.path).toLowerCase();
+//   const staticExtensions = ['.js', '.css', '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.woff', '.woff2', '.ttf'];
   
-  if (staticExtensions.includes(ext) || req.path.includes('/assets/')) {
-    console.warn(`🚫 Asset NOT found in static folder: ${req.path}`);
-    return res.status(404).json({
-      success: false,
-      message: `Asset not found: ${req.path}`,
-      path: req.path
-    });
-  }
+//   if (staticExtensions.includes(ext) || req.path.includes('/assets/')) {
+//     console.warn(`🚫 Asset NOT found in static folder: ${req.path}`);
+//     return res.status(404).json({
+//       success: false,
+//       message: `Asset not found: ${req.path}`,
+//       path: req.path
+//     });
+//   }
 
-  // Serve index.html for SPA routing
-  const indexPath = path.join(distPath, 'index.html');
-  if (fs.existsSync(indexPath)) {
-    res.sendFile(indexPath);
-  } else {
-    next();
-  }
-});
+//   // Serve index.html for SPA routing
+//   const indexPath = path.join(distPath, 'index.html');
+//   if (fs.existsSync(indexPath)) {
+//     res.sendFile(indexPath);
+//   } else {
+//     next();
+//   }
+// });
 
 // Basic error handler
 app.use((err, req, res, next) => {

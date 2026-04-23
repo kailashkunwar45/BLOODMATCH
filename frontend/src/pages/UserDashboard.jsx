@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { MapPin, Droplet, Clock, CheckCircle, Navigation, Bell } from 'lucide-react';
@@ -47,24 +47,18 @@ const UserDashboard = () => {
   const [requestLoading, setRequestLoading] = useState(false);
   const [notifications, setNotifications] = useState([]);
 
-  useEffect(() => {
-    fetchGlobalData();
-    fetchNotifications();
-    if (dashboardMode === 'receive') {
-      fetchMyRequests();
-    }
-  }, [dashboardMode]);
 
-  const fetchNotifications = async () => {
+
+  const fetchNotifications = useCallback(async () => {
     try {
       const { data } = await axios.get(`${API_URL}/notifications/my`, {
         headers: { Authorization: `Bearer ${user.token}` }
       });
       setNotifications(data.notifications);
     } catch (err) { console.error(err); }
-  };
+  }, [API_URL, user.token]);
 
-  const fetchGlobalData = async () => {
+  const fetchGlobalData = useCallback(async () => {
     try {
       const headers = { Authorization: `Bearer ${user.token}` };
       const [reqs, avail, hosps] = await Promise.all([
@@ -82,9 +76,9 @@ const UserDashboard = () => {
     } catch (err) {
       console.error(err);
     }
-  };
+  }, [API_URL, user.token]);
 
-  const fetchMyRequests = async () => {
+  const fetchMyRequests = useCallback(async () => {
     try {
       const { data } = await axios.get(`${API_URL}/requests/my-requests`, {
         headers: { Authorization: `Bearer ${user.token}` }
@@ -93,7 +87,15 @@ const UserDashboard = () => {
     } catch (err) {
       console.error(err);
     }
-  };
+  }, [API_URL, user.token]);
+
+  useEffect(() => {
+    fetchGlobalData();
+    fetchNotifications();
+    if (dashboardMode === 'receive') {
+      fetchMyRequests();
+    }
+  }, [dashboardMode, fetchGlobalData, fetchNotifications, fetchMyRequests]);
 
   const getUserLocation = () => {
     setGeoLoading(true);

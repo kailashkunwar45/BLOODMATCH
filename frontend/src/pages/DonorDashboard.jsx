@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { MapPin, Droplet, User, Phone, CheckCircle, Clock } from 'lucide-react';
@@ -16,12 +16,9 @@ const DonorDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [success, setSuccess] = useState('');
 
-  useEffect(() => {
-    fetchProfile();
-    fetchMatches();
-  }, []);
 
-  const fetchProfile = async () => {
+
+  const fetchProfile = useCallback(async () => {
     try {
       const { data } = await axios.get(`${API_URL}/donors/profile`, {
         headers: { Authorization: `Bearer ${user.token}` }
@@ -36,16 +33,21 @@ const DonorDashboard = () => {
         });
       }
     } catch (err) { console.error(err); }
-  };
+  }, [API_URL, user.token]);
 
-  const fetchMatches = async () => {
+  const fetchMatches = useCallback(async () => {
     try {
       const { data } = await axios.get(`${API_URL}/requests/donor-matches`, {
         headers: { Authorization: `Bearer ${user.token}` }
       });
       setMatches(data.requests);
     } catch (err) { console.error(err); } finally { setLoading(false); }
-  };
+  }, [API_URL, user.token]);
+
+  useEffect(() => {
+    fetchProfile();
+    fetchMatches();
+  }, [fetchProfile, fetchMatches]);
 
   const handleUpdateProfile = async (e) => {
     e.preventDefault();

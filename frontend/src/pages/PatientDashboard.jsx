@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { MapPin, Droplet, User, Phone, CheckCircle, Clock } from 'lucide-react';
@@ -17,21 +17,18 @@ const PatientDashboard = () => {
   const [formLoading, setFormLoading] = useState(false);
   const [success, setSuccess] = useState('');
 
-  useEffect(() => {
-    fetchRequests();
-    fetchHospitals();
-  }, []);
 
-  const fetchRequests = async () => {
+
+  const fetchRequests = useCallback(async () => {
     try {
       const { data } = await axios.get(`${API_URL}/requests/my-requests`, {
         headers: { Authorization: `Bearer ${user.token}` }
       });
       setRequests(data.requests);
     } catch (err) { console.error(err); } finally { setLoading(false); }
-  };
+  }, [API_URL, user.token]);
 
-  const fetchHospitals = async () => {
+  const fetchHospitals = useCallback(async () => {
     try {
       const { data } = await axios.get(`${API_URL}/hospitals/all`, {
         headers: { Authorization: `Bearer ${user.token}` }
@@ -39,7 +36,12 @@ const PatientDashboard = () => {
       setHospitals(data.hospitals);
       if (data.hospitals.length > 0) setFormData(prev => ({ ...prev, hospital: data.hospitals[0]._id }));
     } catch (err) { console.error(err); }
-  };
+  }, [API_URL, user.token]);
+
+  useEffect(() => {
+    fetchRequests();
+    fetchHospitals();
+  }, [fetchRequests, fetchHospitals]);
 
   const handleCreateRequest = async (e) => {
     e.preventDefault();

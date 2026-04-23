@@ -1,36 +1,40 @@
+/* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import axios from 'axios';
 
 const AuthContext = createContext();
 
+// Set API base URL: Use env variable or default to /api for relative paths in production
+const API_URL = import.meta.env.VITE_API_URL || '/api';
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Set API base URL: Use env variable or default to /api for relative paths in production
-  const API_URL = import.meta.env.VITE_API_URL || '/api';
-
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      fetchUserProfile(token);
-    } else {
-      setLoading(false);
-    }
-  }, []);
+    let cancelled = false;
 
-  const fetchUserProfile = async (token) => {
-    try {
-      const { data } = await axios.get(`${API_URL}/auth/profile`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setUser({ ...data, token });
-    } catch (error) {
-      localStorage.removeItem('token');
-    } finally {
-      setLoading(false);
-    }
-  };
+    (async () => {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        if (!cancelled) setLoading(false);
+        return;
+      }
+
+      try {
+        const { data } = await axios.get(`${API_URL}/auth/profile`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (!cancelled) setUser({ ...data, token });
+      } catch {
+        localStorage.removeItem('token');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, []);
 
   const login = async (email, password) => {
     const { data } = await axios.post(`${API_URL}/auth/login`, { email, password });

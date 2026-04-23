@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { Users, Building, Droplet, ClipboardList, TrendingUp, RefreshCw, Search, Trash2, ShieldAlert, LayoutDashboard } from 'lucide-react';
@@ -23,15 +23,12 @@ const AdminDashboard = () => {
 
   const headers = { Authorization: `Bearer ${user.token}` };
 
-  useEffect(() => {
-    fetchAll();
-  }, []);
-
-  const fetchAll = async () => {
+  const fetchAll = useCallback(async () => {
     try {
+      const headersLocal = { Authorization: `Bearer ${user.token}` };
       const [statsRes, logsRes] = await Promise.all([
-        axios.get(`${API_URL}/admin/stats`, { headers }),
-        axios.get(`${API_URL}/admin/logs`, { headers })
+        axios.get(`${API_URL}/admin/stats`, { headers: headersLocal }),
+        axios.get(`${API_URL}/admin/logs`, { headers: headersLocal })
       ]);
       setStats(statsRes.data.stats);
       setLogs(logsRes.data.logs);
@@ -41,7 +38,11 @@ const AdminDashboard = () => {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [API_URL, user.token]);
+
+  useEffect(() => {
+    fetchAll();
+  }, [fetchAll]);
 
   const fetchUsers = async () => {
     setRefreshing(true);
@@ -49,7 +50,7 @@ const AdminDashboard = () => {
       const { data } = await axios.get(`${API_URL}/admin/users`, { headers });
       setUsersList(data.users);
       setCurrentView('users');
-    } catch (e) { showError('Failed to fetch users'); }
+    } catch { showError('Failed to fetch users'); }
     setRefreshing(false);
   };
 
@@ -59,7 +60,7 @@ const AdminDashboard = () => {
       const { data } = await axios.get(`${API_URL}/admin/hospitals`, { headers });
       setHospitalsList(data.hospitals);
       setCurrentView('hospitals');
-    } catch (e) { showError('Failed to fetch hospitals'); }
+    } catch { showError('Failed to fetch hospitals'); }
     setRefreshing(false);
   };
 
@@ -69,7 +70,7 @@ const AdminDashboard = () => {
       const { data } = await axios.get(`${API_URL}/admin/requests`, { headers });
       setRequestsList(data.requests);
       setCurrentView('requests');
-    } catch (e) { showError('Failed to fetch requests'); }
+    } catch { showError('Failed to fetch requests'); }
     setRefreshing(false);
   };
 
