@@ -17,6 +17,9 @@ build/
 .env.test.local
 .env.production.local
 
+# Private credentials (never commit this)
+RENDER_ENV_VARS_PRIVATE.txt
+
 # Logs
 npm-debug.log*
 yarn-debug.log*
