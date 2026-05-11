@@ -1,3 +1,4 @@
+console.log('🚀 [Pre-flight] Server script is executing...');
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
