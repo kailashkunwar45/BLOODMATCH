@@ -52,7 +52,7 @@ const allowedOrigins = [
 app.use(cors({
   origin: (origin, callback) => {
     // If no origin (like mobile/curl) or origin in allowed list
-    if (!origin || allowedOrigins.includes(origin) || origin.includes('onrender.com')) {
+    if (!origin || allowedOrigins.includes(origin) || (origin && origin.includes('onrender.com'))) {
       callback(null, true);
     } else {
       console.warn(`⚠️ CORS blocked request from: ${origin}`);
@@ -76,35 +76,44 @@ app.use('/api/requests', require('./routes/requestRoutes'));
 app.use('/api/admin', require('./routes/adminRoutes'));
 app.use('/api/notifications', require('./routes/notificationRoutes'));
 
+// --- HEALTH CHECK ---
+app.get('/health', (req, res) => {
+  res.status(200).json({ 
+    status: 'ok', 
+    message: 'BloodMatch API is running',
+    timestamp: new Date().toISOString()
+  });
+});
+
 // --- SPA FALLBACK ---
 
-// Catch-all route for SPA navigation - Express 5 compatible syntax
-// app.get('*', (req, res, next) => {
-//   // Skip API routes
-//   if (req.path.startsWith('/api')) return next();
+// Catch-all route for SPA navigation
+app.get('*', (req, res, next) => {
+  // Skip API routes
+  if (req.path.startsWith('/api')) return next();
 
-//   // If we get here, express.static didn't find the file.
-//   // We should only serve index.html for page routes, not missing assets.
-//   const ext = path.extname(req.path).toLowerCase();
-//   const staticExtensions = ['.js', '.css', '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.woff', '.woff2', '.ttf'];
+  // If we get here, express.static didn't find the file.
+  // Check if it's an asset (has an extension) or a page route
+  const ext = path.extname(req.path).toLowerCase();
+  const staticExtensions = ['.js', '.css', '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.woff', '.woff2', '.ttf'];
   
-//   if (staticExtensions.includes(ext) || req.path.includes('/assets/')) {
-//     console.warn(`🚫 Asset NOT found in static folder: ${req.path}`);
-//     return res.status(404).json({
-//       success: false,
-//       message: `Asset not found: ${req.path}`,
-//       path: req.path
-//     });
-//   }
+  if (staticExtensions.includes(ext) || req.path.includes('/assets/')) {
+    return res.status(404).json({
+      success: false,
+      message: `Asset not found: ${req.path}`,
+      path: req.path
+    });
+  }
 
-//   // Serve index.html for SPA routing
-//   const indexPath = path.join(distPath, 'index.html');
-//   if (fs.existsSync(indexPath)) {
-//     res.sendFile(indexPath);
-//   } else {
-//     next();
-//   }
-// });
+  // Serve index.html for SPA routing (Vite build output)
+  const indexPath = path.join(distPath, 'index.html');
+  if (fs.existsSync(indexPath)) {
+    res.sendFile(indexPath);
+  } else {
+    // If even index.html is missing, we might not have built the frontend yet
+    res.status(500).send('Frontend build not found. Please run "npm run build" in the frontend directory.');
+  }
+});
 
 // Basic error handler
 app.use((err, req, res, next) => {
