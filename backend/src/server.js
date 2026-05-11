@@ -89,7 +89,7 @@ app.get('/health', (req, res) => {
 // --- SPA FALLBACK ---
 
 // Catch-all route for SPA navigation
-app.get('/*', (req, res, next) => {
+app.get('*any', (req, res, next) => {
   // Skip API routes
   if (req.path.startsWith('/api')) return next();
 
